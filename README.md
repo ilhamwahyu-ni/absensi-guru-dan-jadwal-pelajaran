@@ -1,6 +1,4 @@
-# absensi-guru-dan-jadwal-pelajaran
-Absensi Guru dan Jadwal Pelajaran
-
+# Absensi Guru dan Jadwal Pelajaran
 Aplikasi web ini digunakan untuk mencatat absensi guru dan mengelola jadwal pelajaran di sekolah. Terdiri dari dua fitur utama:
 
 ## Fitur Absensi Guru (`index.html`)
