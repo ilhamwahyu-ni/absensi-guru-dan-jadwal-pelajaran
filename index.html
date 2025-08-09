@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Rekap Absensi Guru</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-shadow { box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .pulse-animation { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        .notification.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .notification.success { background-color: #28a745; }
+        .notification.error { background-color: #dc3545; }
+        .pagination-btn:disabled {
+            background-color: #d1d5db;
+            cursor: not-allowed;
+        }
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+        }
+        .sortable-header .sort-icon {
+            opacity: 0.3;
+            margin-left: 4px;
+        }
+        .sortable-header.sorted-asc .sort-icon.asc,
+        .sortable-header.sorted-desc .sort-icon.desc {
+            opacity: 1;
+            color: #3b82f6; /* blue-500 */
+        }
+        .summary-card {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .summary-card:hover {
+            transform: translateY(-5px);
+        }
+
+        /* --- CSS BARU UNTUK SCROLLING ACTIVITY --- */
+        #recentActivity {
+            position: relative; /* Diperlukan untuk elemen anak absolut */
+            height: 192px; /* Sesuai dengan kelas h-48 */
+            overflow: hidden; /* Sembunyikan konten yang meluap */
+        }
+        
+        #activityScroller {
+            position: absolute;
+            width: 100%;
+            /* Animasi akan diterapkan oleh JavaScript */
+        }
+
+        @keyframes scrollUp {
+            from {
+                transform: translateY(0);
+            }
+            to {
+                /* Bergerak ke atas sejauh 50% dari tingginya (karena konten diduplikasi) */
+                transform: translateY(-50%);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+   <header class="gradient-bg text-white shadow-lg">
+    <div class="container mx-auto px-6 py-4">
+        <div class="flex flex-col md:flex-row justify-between items-center">
+            <div class="flex items-center mb-4 md:mb-0">
+                <i class="fas fa-chalkboard-teacher text-3xl mr-3"></i>
+                <h1 class="text-2xl md:text-3xl font-bold">Dashboard Absensi Guru</h1>
+            </div>
+            
+            <nav class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-6 text-lg font-semibold">
+                <!--<a href="/index.html" class="hover:text-blue-200 transition duration-300">Dasbor</a>-->
+                <a href="/jadwal-pelajaran.html" class="hover:text-blue-200 transition duration-300">Jadwal Pelajaran</a>
+            </nav>
+            
+            <div class="text-center md:text-right mt-4 md:mt-0">
+                <div id="currentDateTime" class="text-lg font-semibold"></div>
+                <div class="text-sm opacity-90">Sistem Monitoring Real-time</div>
+            </div>
+        </div>
+    </div>
+</header>
+
+    <div class="container mx-auto px-6 py-8">
+        
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Summary Widget -->
+            <div class="bg-white rounded-xl card-shadow p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4" id="summaryTitle">Ringkasan Hari Ini</h2>
+                <div class="flex flex-col md:flex-row justify-around items-center text-center h-full">
+                    <div id="summary-present-card" class="p-4 summary-card" data-status-filter="Hadir">
+                        <p class="text-4xl font-bold text-green-600" id="summaryPresent">0</p>
+                        <p class="text-sm text-gray-500 mt-1">Tepat Waktu</p>
+                    </div>
+                    <div id="summary-late-card" class="p-4 summary-card" data-status-filter="Terlambat">
+                        <p class="text-4xl font-bold text-orange-600" id="summaryLate">0</p>
+                        <p class="text-sm text-gray-500 mt-1">Terlambat</p>
+                    </div>
+                    <div id="summary-sick-card" class="p-4 summary-card" data-status-filter="Sakit/Izin">
+                        <p class="text-4xl font-bold text-red-600" id="summarySick">0</p>
+                        <p class="text-sm text-gray-500 mt-1">Sakit / Izin</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="bg-white rounded-xl card-shadow p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">Aktivitas Terbaru Hari Ini</h2>
+                <div id="recentActivity">
+                    <!-- Konten aktivitas akan diisi oleh JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Table -->
+        <div class="bg-white rounded-xl card-shadow p-6 mt-8">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h2 class="text-xl font-bold text-gray-800">Data Absensi Guru</h2>
+                <div class="flex items-center space-x-2 md:space-x-4 flex-wrap justify-center gap-2">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="Cari guru..."
+                               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                     <div class="relative">
+                        <input type="date" id="dateFilter"
+                               class="pl-3 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <button onclick="refreshData(false)" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                    <!-- Download Filtered Data Button -->
+                    <button id="downloadFilteredBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-file-excel mr-2"></i>Download Filter
+                    </button>
+                    <!-- Download Last Month's Report Button -->
+                    <button id="downloadLastMonthBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-calendar-alt mr-2"></i>Rekap Bulan Lalu
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full table-auto">
+                    <thead id="table-header">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-key="namaGuru">Nama Guru<span class="sort-icons"><i class="fas fa-sort-up sort-icon asc"></i><i class="fas fa-sort-down sort-icon desc"></i></span></th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-key="timestamp">Timestamp<span class="sort-icons"><i class="fas fa-sort-up sort-icon asc"></i><i class="fas fa-sort-down sort-icon desc"></i></span></th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-key="statusKehadiran">Status Kehadiran<span class="sort-icons"><i class="fas fa-sort-up sort-icon asc"></i><i class="fas fa-sort-down sort-icon desc"></i></span></th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-key="statusKeterlambatan">Status Keterlambatan<span class="sort-icons"><i class="fas fa-sort-up sort-icon asc"></i><i class="fas fa-sort-down sort-icon desc"></i></span></th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort-key="kelas">Kelas<span class="sort-icons"><i class="fas fa-sort-up sort-icon asc"></i><i class="fas fa-sort-down sort-icon desc"></i></span></th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTable" class="bg-white divide-y divide-gray-200">
+                        <!-- Table rows will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+             <!-- Pagination Controls -->
+            <div id="pagination-controls" class="flex justify-between items-center mt-4">
+                <span id="page-info" class="text-sm text-gray-700"></span>
+                <div class="flex gap-2">
+                    <button id="prev-page-btn" class="pagination-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-l">
+                        Sebelumnya
+                    </button>
+                    <button id="next-page-btn" class="pagination-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-r">
+                        Berikutnya
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="w-full bg-gray-100 text-center py-4 mt-8 text-gray-500 text-sm">
+                Dibuat oleh :  <a href="https://ilwa.my.id" class="text-blue-600 hover:underline" target="_blank"
+                    rel="noopener">ilwa.my.id</a>
+            </footer>
+
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-8 text-center">
+                <div class="pulse-animation">
+                    <i class="fas fa-spinner fa-spin text-4xl text-blue-600 mb-4"></i>
+                </div>
+                <p class="text-gray-600">Memuat data absensi...</p>
+            </div>
+        </div>
+
+        <!-- Notification Element -->
+        <div id="notification" class="notification"></div>
+    </div>
+
+    <script>
+        // --- KONFIGURASI ---
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ2qmOEJSX3JTxPfocFV4yu8d9rN0ntepS4PQs5giZgHu7FzN0bJuQmozX6ibCmprjiFMx_7ZRTUvXN/pub?output=csv&gid=488569239';
+        const AUTO_SYNC_INTERVAL = 30000; // 30 detik
+        const ROWS_PER_PAGE = 10;
+
+        // --- STATE APLIKASI ---
+        let fullAttendanceData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        let sortKey = 'timestamp'; // Urutan default
+        let sortDirection = 'desc'; // Arah default
+        
+        // --- FUNGSI UTAMA ---
+        async function initDashboard() {
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+            document.getElementById('dateFilter').value = new Date().toLocaleDateString('en-CA');
+            setupEventListeners();
+            await refreshData(true);
+            setInterval(() => refreshData(false), AUTO_SYNC_INTERVAL);
+        }
+
+        async function refreshData(isInitialLoad = false) {
+            if (isInitialLoad) document.getElementById('loadingState').style.display = 'flex';
+            try {
+                const response = await fetch(SHEET_URL, { cache: 'no-cache' });
+                if (!response.ok) throw new Error(`Gagal mengambil data: ${response.status} ${response.statusText}`);
+                const csvText = await response.text();
+                const parsedData = parseCSV(csvText);
+                if (parsedData.length === 0) throw new Error("Tidak ada data valid yang ditemukan di spreadsheet.");
+                fullAttendanceData = parsedData;
+                applyFiltersAndRender();
+                populateRecentActivity(); // Memanggil fungsi aktivitas yang diperbarui
+                if (!isInitialLoad) showNotification('Data berhasil disinkronkan!', 'success');
+            } catch (error) {
+                console.error('Error fetching or processing data:', error);
+                let userFriendlyMessage = error.message;
+                if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+                    userFriendlyMessage = "Gagal terhubung ke Google Sheets. Pastikan sheet Anda sudah dipublikasikan ke web.";
+                }
+                showNotification(userFriendlyMessage, 'error');
+            } finally {
+                if (isInitialLoad) document.getElementById('loadingState').style.display = 'none';
+            }
+        }
+
+        function setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; applyFiltersAndRender(); });
+            document.getElementById('dateFilter').addEventListener('change', () => { currentPage = 1; applyFiltersAndRender(); });
+            document.getElementById('table-header').addEventListener('click', handleSort);
+            document.getElementById('summary-present-card').addEventListener('click', () => filterFromSummary('Hadir'));
+            document.getElementById('summary-late-card').addEventListener('click', () => filterFromSummary('Terlambat'));
+            document.getElementById('summary-sick-card').addEventListener('click', () => filterFromSummary('Sakit/Izin'));
+            document.getElementById('prev-page-btn').addEventListener('click', () => {
+                if (currentPage > 1) { currentPage--; renderTable(); }
+            });
+            document.getElementById('next-page-btn').addEventListener('click', () => {
+                const totalPages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
+                if (currentPage < totalPages) { currentPage++; renderTable(); }
+            });
+            document.getElementById('downloadFilteredBtn').addEventListener('click', exportFilteredData);
+            document.getElementById('downloadLastMonthBtn').addEventListener('click', exportLastMonthData);
+        }
+        
+        // --- PARSING & PENGOLAHAN DATA ---
+        function parseSafeDate(timestampStr) {
+            if (!timestampStr) return null;
+            const match = timestampStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
+            if (match) {
+                const day = parseInt(match[1], 10);
+                const month = parseInt(match[2], 10) - 1;
+                const year = parseInt(match[3], 10);
+                const hour = parseInt(match[4] || '0', 10);
+                const minute = parseInt(match[5] || '0', 10);
+                const second = parseInt(match[6] || '0', 10);
+                const date = new Date(year, month, day, hour, minute, second);
+                return isNaN(date) ? null : date;
+            }
+            const date = new Date(timestampStr);
+            return isNaN(date) ? null : date;
+        }
+
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            if (lines.length < 2) return [];
+            const headerLine = lines.shift();
+            const headers = headerLine.split(',').map(h => h.replace(/"/g, '').trim().toLowerCase().replace(/\s(.)/g, (m, chr) => chr.toUpperCase()).replace(/\s/g, ''));
+            return lines.map(line => {
+                const values = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [];
+                const row = {};
+                headers.forEach((header, index) => {
+                    if (values[index]) {
+                        let key = header;
+                        if (key.includes('namaguru')) key = 'namaGuru';
+                        if (key.includes('kehadiran')) key = 'statusKehadiran';
+                        if (key.includes('keterlambatan')) key = 'statusKeterlambatan';
+                        row[key] = values[index].replace(/"/g, '').trim();
+                    }
+                });
+                return row;
+            }).filter(row => row.timestamp && row.namaGuru);
+        }
+
+        function applyFiltersAndRender() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const dateValue = document.getElementById('dateFilter').value;
+            let tableData = fullAttendanceData;
+            if (dateValue) {
+                tableData = tableData.filter(item => {
+                    const itemDate = parseSafeDate(item.timestamp);
+                    return itemDate ? itemDate.toLocaleDateString('en-CA') === dateValue : false;
+                });
+            }
+            if (searchTerm) {
+                tableData = tableData.filter(item => item.namaGuru && item.namaGuru.toLowerCase().includes(searchTerm));
+            }
+            filteredData = tableData;
+            sortFilteredData();
+            updateWidgets();
+            renderTable();
+        }
+        
+        function handleSort(e) {
+            const header = e.target.closest('th');
+            if (!header || !header.dataset.sortKey) return;
+            const newSortKey = header.dataset.sortKey;
+            if (sortKey === newSortKey) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortKey = newSortKey;
+                sortDirection = 'asc';
+            }
+            applyFiltersAndRender();
+        }
+
+        function sortFilteredData() {
+            filteredData.sort((a, b) => {
+                const valA = a[sortKey];
+                const valB = b[sortKey];
+                let comparison = 0;
+                if (sortKey === 'timestamp') {
+                    const dateA = parseSafeDate(valA) || 0;
+                    const dateB = parseSafeDate(valB) || 0;
+                    comparison = dateA - dateB;
+                } else {
+                    comparison = (valA || '').toString().localeCompare((valB || '').toString());
+                }
+                return sortDirection === 'asc' ? comparison : -comparison;
+            });
+        }
+        
+        // --- FUNGSI PEMBARUAN TAMPILAN (UI) ---
+        function renderTable() {
+            const tableBody = document.getElementById('attendanceTable');
+            tableBody.innerHTML = '';
+            updateSortIndicators();
+            const totalPages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
+            currentPage = Math.max(1, Math.min(currentPage, totalPages || 1));
+            const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
+            const endIndex = startIndex + ROWS_PER_PAGE;
+            const paginatedData = filteredData.slice(startIndex, endIndex);
+            if (paginatedData.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">Tidak ada data yang cocok dengan filter saat ini.</td></tr>`;
+            } else {
+                paginatedData.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50 transition-colors';
+                    const statusKehadiranClass = getStatusClass(item.statusKehadiran);
+                    const statusKeterlambatanClass = getStatusClass(item.statusKeterlambatan);
+                    const dateObj = parseSafeDate(item.timestamp);
+                    const formattedTime = dateObj ? dateObj.toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Tanggal Tidak Valid';
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap"><div class="flex items-center"><div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mr-3 text-gray-600 font-bold">${item.namaGuru ? item.namaGuru.charAt(0).toUpperCase() : '?'}</div><div class="text-sm font-medium text-gray-900">${item.namaGuru || 'N/A'}</div></div></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formattedTime}</td>
+                        <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs font-semibold rounded-full ${statusKehadiranClass}">${item.statusKehadiran || 'N/A'}</span></td>
+                        <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 py-1 text-xs font-semibold rounded-full ${statusKeterlambatanClass}">${item.statusKeterlambatan || 'N/A'}</span></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${item.kelas || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.keterangan || ''}</td>`;
+                    tableBody.appendChild(row);
+                });
+            }
+            updatePaginationControls();
+        }
+        
+        function updateSortIndicators() {
+            document.querySelectorAll('.sortable-header').forEach(header => {
+                header.classList.remove('sorted-asc', 'sorted-desc');
+                if (header.dataset.sortKey === sortKey) {
+                    header.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                }
+            });
+        }
+
+        function getStatusClass(status) {
+            if (!status) return 'bg-gray-200 text-gray-800';
+            const lowerStatus = status.toLowerCase();
+            if (lowerStatus.includes('hadir') || lowerStatus.includes('tepat')) return 'bg-green-100 text-green-800';
+            if (lowerStatus.includes('terlambat')) return 'bg-orange-100 text-orange-800';
+            if (lowerStatus.includes('sakit') || lowerStatus.includes('izin')) return 'bg-red-100 text-red-800';
+            return 'bg-gray-100 text-gray-800';
+        }
+
+        function updatePaginationControls() {
+            const totalPages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
+            document.getElementById('prev-page-btn').disabled = currentPage <= 1;
+            document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
+            const startItem = filteredData.length > 0 ? (currentPage - 1) * ROWS_PER_PAGE + 1 : 0;
+            const endItem = Math.min(currentPage * ROWS_PER_PAGE, filteredData.length);
+            document.getElementById('page-info').textContent = `Menampilkan ${startItem}-${endItem} dari ${filteredData.length} data`;
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            document.getElementById('currentDateTime').textContent = now.toLocaleDateString('id-ID', options);
+        }
+
+       function updateWidgets() {
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const todaysData = fullAttendanceData.filter(item => {
+                const itemDate = parseSafeDate(item.timestamp);
+                return itemDate && itemDate.toLocaleDateString('en-CA') === todayStr;
+            });
+            
+            let tepatWaktu = 0;
+            let terlambat = 0;
+            let sakitIzin = 0;
+
+            todaysData.forEach(item => {
+                const statusKehadiran = (item.statusKehadiran || '').toLowerCase();
+                const statusKeterlambatan = (item.statusKeterlambatan || '').toLowerCase();
+
+                // Prioritas 1: Cek apakah Sakit atau Izin
+                if (statusKehadiran.includes('sakit') || statusKehadiran.includes('izin')) {
+                    sakitIzin++;
+                } 
+                // Prioritas 2: Cek apakah Terlambat dari kolomnya
+                else if (statusKeterlambatan.includes('terlambat (toleransi)')||statusKeterlambatan.includes('sangat terlambat')) {
+                    terlambat++;
+                } 
+                // Jika tidak keduanya, maka dianggap Tepat Waktu
+                else if(statusKeterlambatan.includes('hadir tepat waktu')){
+                    tepatWaktu++;
+                }
+            });
+
+            document.getElementById('summaryPresent').textContent = tepatWaktu;
+            document.getElementById('summaryLate').textContent = terlambat;
+            document.getElementById('summarySick').textContent = sakitIzin;
+        }
+
+        /**
+         * FUNGSI YANG DIPERBARUI: Mengisi dan menganimasikan daftar aktivitas terbaru.
+         */
+        function populateRecentActivity() {
+            const activityContainer = document.getElementById('recentActivity');
+            activityContainer.innerHTML = ''; // Hapus konten sebelumnya
+
+            const todayStr = new Date().toLocaleDateString('en-CA');
+            const todaysData = fullAttendanceData
+                .filter(item => {
+                    const itemDate = parseSafeDate(item.timestamp);
+                    return itemDate && itemDate.toLocaleDateString('en-CA') === todayStr;
+                })
+                .sort((a, b) => parseSafeDate(b.timestamp) - parseSafeDate(a.timestamp)); // Urutkan dari yang terbaru
+
+            if (todaysData.length === 0) {
+                activityContainer.innerHTML = '<p class="text-gray-500 text-center flex items-center justify-center h-full">Belum ada aktivitas yang tercatat hari ini.</p>';
+                return;
+            }
+
+            const scroller = document.createElement('div');
+            scroller.id = 'activityScroller';
+
+            const createActivityItem = (item) => {
+                const date = parseSafeDate(item.timestamp);
+                const time = date ? date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '';
+                const activityElement = document.createElement('div');
+                activityElement.className = 'flex items-center text-sm p-2 space-x-3';
+                activityElement.innerHTML = `
+                    <div class="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="flex-grow">
+                        <span class="font-semibold text-gray-800">${item.namaGuru}</span>
+                        <span class="text-gray-600"> tercatat ${item.statusKehadiran}.</span>
+                        <span class="text-gray-600"> di kelas ${item.kelas}.</span>
+                    </div>
+                    <div class="text-gray-500 text-xs flex-shrink-0">${time}</div>`;
+                scroller.appendChild(activityElement);
+            };
+
+            todaysData.forEach(createActivityItem);
+
+            // Duplikasi konten untuk membuat loop yang mulus jika item cukup banyak
+            const MIN_ITEMS_TO_SCROLL = 4;
+            if (todaysData.length > MIN_ITEMS_TO_SCROLL) {
+                todaysData.forEach(createActivityItem);
+            }
+
+            activityContainer.appendChild(scroller);
+
+            // Terapkan animasi hanya jika scrolling diperlukan
+            if (todaysData.length > MIN_ITEMS_TO_SCROLL) {
+                const itemCount = todaysData.length;
+                // Durasi animasi disesuaikan dengan jumlah item (misal: 4 detik per item)
+                const duration = itemCount * 4; 
+                scroller.style.animation = `scrollUp ${duration}s linear infinite`;
+            }
+        }
+        
+        // --- FUNGSI EKSPOR ---
+        function downloadExcel(data, filename) {
+            if (data.length === 0) {
+                showNotification('Tidak ada data untuk diunduh pada periode yang dipilih.', 'error');
+                return;
+            }
+            const headers = ['Timestamp', 'Nama Guru', 'Status Kehadiran', 'Status Keterlambatan', 'Kelas', 'Keterangan'];
+            const headerKeys = ['timestamp', 'namaGuru', 'statusKehadiran', 'statusKeterlambatan', 'kelas', 'keterangan'];
+            const tableHeader = `<thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+            const tableBody = `<tbody>${data.map(row => {
+                const cells = headerKeys.map(key => {
+                    if (key === 'timestamp') {
+                        const dateObj = parseSafeDate(row[key]);
+                        return `<td>${dateObj ? dateObj.toLocaleString('id-ID') : ''}</td>`;
+                    }
+                    return `<td>${row[key] || ''}</td>`;
+                }).join('');
+                return `<tr>${cells}</tr>`;
+            }).join('')}</tbody>`;
+            const html = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Rekap Absensi</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+                <style>table, th, td { border: 1px solid black; border-collapse: collapse; } th, td { padding: 5px; text-align: left; }</style></head>
+                <body><table>${tableHeader}${tableBody}</table></body></html>`;
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+            const link = document.createElement('a');
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function exportFilteredData() {
+            const searchTerm = document.getElementById('searchInput').value;
+            const dateValue = document.getElementById('dateFilter').value;
+            let filename = 'Rekap_Absen_Terfilter';
+            if (searchTerm) filename = `Rekap_Absen_${searchTerm.replace(/ /g, '_')}`;
+            if (dateValue) filename += `_${dateValue}`;
+            filename += '.xls';
+            downloadExcel(filteredData, filename);
+        }
+
+        function exportLastMonthData() {
+            const today = new Date();
+            const startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+            endDate.setHours(23, 59, 59, 999);
+            const lastMonthData = fullAttendanceData.filter(item => {
+                const itemDate = parseSafeDate(item.timestamp);
+                return itemDate && itemDate >= startDate && itemDate <= endDate;
+            });
+            lastMonthData.sort((a, b) => {
+                const nameA = (a.namaGuru || '').toLowerCase();
+                const nameB = (b.namaGuru || '').toLowerCase();
+                if (nameA < nameB) return -1;
+                if (nameA > nameB) return 1;
+                const dateA = parseSafeDate(a.timestamp) || 0;
+                const dateB = parseSafeDate(b.timestamp) || 0;
+                return dateA - dateB;
+            });
+            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            const monthName = monthNames[startDate.getMonth()];
+            const year = startDate.getFullYear();
+            const filename = `Rekap_Absen_${monthName}_${year}.xls`;
+            downloadExcel(lastMonthData, filename);
+        }
+        
+        // --- Inisialisasi Dashboard ---
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+</html>

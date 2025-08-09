@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="id" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jadwal Pelajaran MTsN Kota Padang Panjang | 2025/2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body { font-family: 'Poppins', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        .dark body { background-color: #111827; color: #d1d5db; }
+        .dark .card, .dark .control-panel { background-color: #1f2937; border-color: #374151; }
+        .dark .card:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1); }
+        .dark h1, .dark .card h3 { color: #f9fafb; }
+        .dark .text-gray-500 { color: #9ca3af; }
+        .dark .text-gray-600 { color: #d1d5db; }
+        .dark .border-gray-300 { border-color: #4b5563; }
+        .dark input, .dark select { background-color: #374151; color: #f9fafb; border-color: #4b5563; }
+        .dark input::placeholder { color: #9ca3af; }
+        .card { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        .highlight { border: 2px solid #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .dark #loading-overlay { background-color: rgba(17, 24, 39, 0.8); }
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #3b82f6; animation: spin 1s ease infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @media print { .no-print, #loading-overlay { display: none; } body { background-color: #ffffff !important; color: #000000 !important; } .dark body { background-color: #ffffff !important; color: #000000 !important; } #scheduleGrid { display: grid; grid-template-columns: repeat(4, 1fr) !important; gap: 0.5rem; } .card, .dark .card { box-shadow: none; border: 1px solid #e5e7eb; background-color: #ffffff !important; color: #000000 !important; } .card h3, .dark .card h3 { color: #000000 !important; } .card p, .dark .card p { color: #374151 !important; } }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div id="loading-overlay">
+        <div class="text-center">
+            <div class="spinner mx-auto"></div>
+            <p class="mt-4 text-lg font-semibold">Memuat data jadwal...</p>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8 no-print">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800">Jadwal Pelajaran MTsN Kota Padang Panjang</h1>
+            <p class="text-gray-500 mt-2 text-lg">Tahun Ajaran 2025/2026 - Semester Ganjil</p>
+            
+            <nav class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-6 text-lg font-semibold">
+                <!--<a href="/index.html" class="hover:text-blue-200 transition duration-300">Dasbor</a>-->
+                <a href="https://absensiguru.ilwa.my.id" class="hover:text-blue-200 transition duration-300">Dashbord Absensi</a>
+            </nav>
+        </header>
+
+        <div class="control-panel bg-white p-4 rounded-xl shadow-md mb-8 sticky top-4 z-10 no-print">
+             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="relative lg:col-span-2">
+                    <input type="text" id="searchInput" placeholder="Cari Guru atau Mapel..." class="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                </div>
+                <div>
+                    <select id="dayFilter" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">Semua Hari</option>
+                        <option value="Senin">Senin</option>
+                        <option value="Selasa">Selasa</option>
+                        <option value="Rabu">Rabu</option>
+                        <option value="Kamis">Kamis</option>
+                        <option value="Jumat">Jumat</option>
+                        <option value="Sabtu">Sabtu</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="classFilter" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">Semua Kelas</option>
+                    </select>
+                </div>
+                <div>
+                    <select id="teacherFilter" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">Semua Guru</option>
+                    </select>
+                </div>
+            </div>
+             <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div>
+                    <button id="highlightTeacherBtn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2" title="Pilih guru dari filter lalu klik tombol ini">
+                        <i class="fa-solid fa-highlighter"></i> Sorot Guru
+                    </button>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button id="printBtn" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> Cetak
+                    </button>
+                    <button id="darkModeToggle" class="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors flex items-center gap-2">
+                         <i class="fa-solid fa-moon"></i> <span id="theme-toggle-text">Mode Gelap</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="scheduleGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+        
+        <div id="noResults" class="hidden text-center py-16">
+            <i class="fa fa-calendar-times fa-4x text-gray-400 mb-4"></i>
+            <h2 class="text-2xl font-semibold text-gray-600">Tidak Ada Jadwal Ditemukan</h2>
+            <p class="text-gray-500 mt-2">Coba ubah kata kunci pencarian atau filter Anda.</p>
+        </div>
+        
+          <!-- Footer -->
+            <footer class="w-full bg-gray-100 text-center py-4 mt-8 text-gray-500 text-sm">
+                Dibuat oleh :  <a href="https://ilwa.my.id" class="text-blue-600 hover:underline" target="_blank"
+                    rel="noopener">ilwa.my.id</a>
+            </footer>
+    </div>
+
+    <script>
+        // --- PENGATURAN URL GOOGLE SHEET ---
+        const sheetUrls = {
+            schedule: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ2qmOEJSX3JTxPfocFV4yu8d9rN0ntepS4PQs5giZgHu7FzN0bJuQmozX6ibCmprjiFMx_7ZRTUvXN/pub?gid=2027416669&single=true&output=csv',
+            teachers: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ2qmOEJSX3JTxPfocFV4yu8d9rN0ntepS4PQs5giZgHu7FzN0bJuQmozX6ibCmprjiFMx_7ZRTUvXN/pub?gid=1926110444&single=true&output=csv',
+            subjects: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ2qmOEJSX3JTxPfocFV4yu8d9rN0ntepS4PQs5giZgHu7FzN0bJuQmozX6ibCmprjiFMx_7ZRTUvXN/pub?gid=436492325&single=true&output=csv'
+        };
+
+        // --- DATA GLOBAL ---
+        let scheduleData = [];
+        let teachers = {};
+        let subjects = {};
+
+        const timeSlots = {
+            '1': { start: '07:30', end: '08:10' }, '2': { start: '08:10', end: '08:50' }, '3': { start: '08:50', end: '09:30' }, '4': { start: '09:30', end: '10:10' },
+            'IST1': { start: '10:10', end: '10:30' },
+            '5': { start: '10:30', end: '11:10' }, '6': { start: '11:10', end: '11:50' }, '7': { start: '11:50', end: '12:30' },
+            'IST2': { start: '12:30', end: '13:30' },
+            '8': { start: '13:30', end: '14:10' }, '9': { start: '14:10', end: '14:50' }
+        };
+        
+        // --- FUNGSI PENGAMBILAN & PEMROSESAN DATA ---
+
+        /**
+         * Mengubah teks CSV menjadi array objek JavaScript, dengan penanganan koma di dalam kutip dan baris kosong.
+         * @param {string} csvText - Teks mentah dari file CSV.
+         * @returns {Array<Object>}
+         */
+        function csvToObjects(csvText) {
+            const lines = csvText.trim().replace(/\r/g, '').split('\n');
+            
+            let headerIndex = -1;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes('Hari') || lines[i].includes('Kelas') || lines[i].includes('KODE_GURU') || lines[i].includes('KODE_MAPEL')) {
+                    headerIndex = i;
+                    break;
+                }
+            }
+
+            if (headerIndex === -1) return [];
+
+            const headers = lines[headerIndex].split(',').map(h => h.trim().replace(/"/g, ''));
+            const dataLines = lines.slice(headerIndex + 1);
+            const result = [];
+            
+            for (const line of dataLines) {
+                if (!line.trim() || !line.includes(',')) continue;
+
+                const obj = {};
+                const values = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [];
+
+                for (let j = 0; j < headers.length; j++) {
+                    const header = headers[j];
+                    if (header) {
+                        const value = values[j] ? values[j].trim().replace(/^"|"$/g, '') : '';
+                        obj[header] = value;
+                    }
+                }
+                result.push(obj);
+            }
+            return result;
+        }
+
+        /**
+         * Mengambil data dari URL CSV secara langsung.
+         * @param {string} url - URL file CSV yang dipublikasikan.
+         * @returns {Promise<string>}
+         */
+        async function fetchCsvData(url) {
+            if (!url || url.includes('URL_CSV_')) {
+                throw new Error(`URL tidak valid. Harap perbarui URL di dalam kode.`);
+            }
+            const response = await fetch(url + '&_=' + new Date().getTime(), { cache: 'no-cache' });
+            if (!response.ok) {
+                throw new Error(`Gagal mengambil data dari ${url}. Status: ${response.status}`);
+            }
+            return response.text();
+        }
+
+        /**
+         * Memproses data jadwal mentah dari sheet menjadi format yang bisa digunakan.
+         * @param {Array<Object>} rawSchedule - Data jadwal dari Google Sheet.
+         * @returns {Array<Object>}
+         */
+        function processScheduleData(rawSchedule) {
+            let processed = [];
+            rawSchedule.forEach(item => {
+                const classRange = item['Kelas'];
+                const day = item['Hari'];
+                const subjectCode = item['Mata Pelajaran (Kode)'];
+                const teacherCode = item['Nama Guru (Kode)'];
+                const jamKeRaw = item['Jam Ke'];
+
+                if (!classRange || !day || !subjectCode || !teacherCode || !jamKeRaw) return;
+
+                const [startClass, endClass] = classRange.split('-').map(c => c.trim());
+                const startClassNum = parseInt(startClass.slice(0, -1), 10);
+                const startClassLetter = startClass.slice(-1);
+                
+                let classes = [];
+                if (!endClass || startClass === endClass) {
+                    classes.push(startClass);
+                } else {
+                    const endClassLetter = endClass.slice(-1);
+                    for (let i = startClassLetter.charCodeAt(0); i <= endClassLetter.charCodeAt(0); i++) {
+                        classes.push(startClassNum + String.fromCharCode(i));
+                    }
+                }
+
+                classes.forEach(className => {
+                    const jamKe = jamKeRaw.split(',').map(j => j.trim());
+                    const firstJam = jamKe[0];
+                    const lastJam = jamKe[jamKe.length - 1];
+                    const timeString = (timeSlots[firstJam] && timeSlots[lastJam]) 
+                        ? `${timeSlots[firstJam].start} - ${timeSlots[lastJam].end}`
+                        : 'N/A';
+                    
+                    const uniqueId = `${day}-${timeString}-${className}-${subjectCode}-${teacherCode}`;
+                    
+                    processed.push({
+                        id: uniqueId,
+                        day: day,
+                        time: timeString,
+                        class: className,
+                        subject: subjectCode,
+                        teacher: teacherCode,
+                        jamKe: jamKe.join(', ')
+                    });
+                });
+            });
+            
+            // --- ENFORCE SPECIAL SATURDAY SCHEDULE ---
+            const allUniqueClasses = [...new Set(processed.map(p => p.class))];
+
+            processed = processed.filter(item => {
+                const isSaturdayJam123 = item.day === 'Sabtu' && (item.jamKe.includes('1') || item.jamKe.includes('2') || item.jamKe.includes('3'));
+                return !isSaturdayJam123;
+            });
+
+            allUniqueClasses.forEach(className => {
+                processed.push({
+                    id: `Sabtu-${timeSlots['1'].start} - ${timeSlots['2'].end}-${className}-15-ALL`,
+                    day: 'Sabtu', time: `${timeSlots['1'].start} - ${timeSlots['2'].end}`, class: className,
+                    subject: '15', teacher: 'ALL', jamKe: '1, 2'
+                });
+                processed.push({
+                    id: `Sabtu-${timeSlots['3'].start} - ${timeSlots['3'].end}-${className}-REM-ALL`,
+                    day: 'Sabtu', time: `${timeSlots['3'].start} - ${timeSlots['3'].end}`, class: className,
+                    subject: 'REM', teacher: 'ALL', jamKe: '3'
+                });
+            });
+
+            return Array.from(new Set(processed.map(e => e.id))).map(id => processed.find(e => e.id === id));
+        }
+
+        // --- DOM ELEMENTS & FUNCTIONS ---
+        const scheduleGrid = document.getElementById('scheduleGrid');
+        const searchInput = document.getElementById('searchInput');
+        const dayFilter = document.getElementById('dayFilter');
+        const classFilter = document.getElementById('classFilter');
+        const teacherFilter = document.getElementById('teacherFilter');
+        const noResults = document.getElementById('noResults');
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const printBtn = document.getElementById('printBtn');
+        const highlightTeacherBtn = document.getElementById('highlightTeacherBtn');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        function populateFilters() {
+            classFilter.innerHTML = '<option value="all">Semua Kelas</option>';
+            teacherFilter.innerHTML = '<option value="all">Semua Guru</option>';
+
+            const allClasses = [...new Set(scheduleData.map(item => item.class))].sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+            const allTeacherCodes = Object.keys(teachers);
+
+            allClasses.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c;
+                option.textContent = `Kelas ${c}`;
+                classFilter.appendChild(option);
+            });
+
+            allTeacherCodes
+                .filter(t => t !== 'ALL' && teachers[t])
+                .sort((a, b) => (teachers[a] || '').localeCompare(teachers[b] || ''))
+                .forEach(t => {
+                    const option = document.createElement('option');
+                    option.value = t;
+                    option.textContent = teachers[t];
+                    teacherFilter.appendChild(option);
+                });
+        }
+
+        function renderSchedule(data) {
+            scheduleGrid.innerHTML = '';
+            if (data.length === 0) {
+                noResults.classList.remove('hidden');
+                return;
+            }
+            noResults.classList.add('hidden');
+
+            data.forEach(item => {
+                const teacherName = teachers[item.teacher] || 'Guru Khusus';
+                const subjectName = subjects[item.subject] || 'Aktivitas';
+                const subjectColor = getSubjectColor(item.subject);
+
+                const card = document.createElement('div');
+                card.id = `card-${item.id}`;
+                card.className = 'card bg-white rounded-lg shadow-sm p-5 flex flex-col fade-in border-2 border-transparent';
+                
+                card.innerHTML = `
+                    <div class="flex-grow">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="px-3 py-1 text-xs font-semibold text-white rounded-full ${subjectColor.bg}">${subjectName}</span>
+                            <span class="text-sm font-semibold text-gray-500">${item.day}</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-1">Kelas ${item.class}</h3>
+                        <p class="text-gray-500 text-sm mb-4">${teacherName}</p>
+                    </div>
+                    <div class="border-t border-gray-200 dark:border-gray-700 pt-3 mt-auto">
+                        <div class="flex items-center text-gray-600">
+                            <i class="fa-regular fa-clock w-5 text-center mr-2"></i>
+                            <span class="text-sm font-medium">${item.time}</span>
+                        </div>
+                    </div>
+                `;
+                scheduleGrid.appendChild(card);
+            });
+        }
+        
+        function getSubjectColor(subjectCode) {
+            const colors = [
+                { bg: 'bg-blue-500' }, { bg: 'bg-green-500' }, { bg: 'bg-red-500' }, 
+                { bg: 'bg-yellow-500' }, { bg: 'bg-purple-500' }, { bg: 'bg-pink-500' },
+                { bg: 'bg-indigo-500' }, { bg: 'bg-teal-500' }, { bg: 'bg-orange-500' }
+            ];
+            if (['IST', 'UPC', 'REM', '15', 'SHOLISKAN'].includes(subjectCode)) {
+                if (subjectCode === '15') return { bg: 'bg-green-600' }; 
+                if (subjectCode === 'REM') return { bg: 'bg-yellow-600' };
+                if (subjectCode === 'SHOLISKAN') return { bg: 'bg-sky-500' };
+                return { bg: 'bg-gray-400' };
+            }
+            let hash = 0;
+            const codeStr = String(subjectCode);
+            for (let i = 0; i < codeStr.length; i++) {
+                hash = codeStr.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return colors[Math.abs(hash % colors.length)];
+        }
+
+        function applyFilters() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedDay = dayFilter.value;
+            const selectedClass = classFilter.value;
+            const selectedTeacher = teacherFilter.value;
+
+            let filteredData = scheduleData.filter(item => {
+                const teacherName = (teachers[item.teacher] || '').toLowerCase();
+                const subjectName = (subjects[item.subject] || '').toLowerCase();
+                const matchesSearch = searchTerm === '' || teacherName.includes(searchTerm) || subjectName.includes(searchTerm);
+                const matchesDay = selectedDay === 'all' || item.day === selectedDay;
+                const matchesClass = selectedClass === 'all' || item.class === selectedClass;
+                const matchesTeacher = selectedTeacher === 'all' || item.teacher === selectedTeacher;
+                return matchesSearch && matchesDay && matchesClass && matchesTeacher;
+            });
+
+            // --- PERBAIKAN: Urutkan jadwal berdasarkan waktu ---
+            filteredData.sort((a, b) => a.time.localeCompare(b.time));
+            
+            renderSchedule(filteredData);
+            clearHighlights();
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.highlight').forEach(card => card.classList.remove('highlight'));
+        }
+        
+        function highlightTeacherSchedule() {
+            clearHighlights();
+            const selectedTeacher = teacherFilter.value;
+            if (selectedTeacher === 'all') {
+                alert('Silakan pilih satu guru dari filter untuk menyorot jadwal.');
+                return;
+            }
+            
+            scheduleData.forEach(item => {
+                if(item.teacher === selectedTeacher) {
+                    const card = document.getElementById(`card-${item.id}`);
+                    if(card) card.classList.add('highlight');
+                }
+            });
+        }
+        
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Fetch all data in parallel
+                const [scheduleCsv, teachersCsv, subjectsCsv] = await Promise.all([
+                    fetchCsvData(sheetUrls.schedule),
+                    fetchCsvData(sheetUrls.teachers),
+                    fetchCsvData(sheetUrls.subjects)
+                ]);
+
+                // Process data
+                const rawTeachers = csvToObjects(teachersCsv);
+                rawTeachers.forEach(t => { teachers[t.KODE_GURU] = t.NAMA_LENGKAP_GURU; });
+
+                const rawSubjects = csvToObjects(subjectsCsv);
+                rawSubjects.forEach(s => { subjects[s.KODE_MAPEL] = s.NAMA_MAPEL; });
+                
+                const rawSchedule = csvToObjects(scheduleCsv);
+                scheduleData = processScheduleData(rawSchedule);
+                
+                // Populate UI
+                populateFilters();
+                applyFilters();
+
+            } catch (error) {
+                console.error('Gagal memuat data jadwal:', error);
+                scheduleGrid.innerHTML = `<div class="col-span-full text-center py-16 bg-red-50 text-red-700 rounded-lg">
+                    <h2 class="text-2xl font-bold">Terjadi Kesalahan</h2>
+                    <p class="mt-2">Tidak dapat memuat data dari Google Sheet. Pastikan URL di dalam kode sudah benar dan sheet sudah dipublikasikan dengan benar.</p>
+                    <p class="mt-1 font-mono text-sm">${error.message}</p>
+                </div>`;
+            } finally {
+                // Hide loading overlay
+                loadingOverlay.style.display = 'none';
+            }
+
+            // Setup event listeners
+            [searchInput, dayFilter, classFilter, teacherFilter].forEach(el => {
+                el.addEventListener('input', applyFilters);
+                el.addEventListener('change', applyFilters);
+            });
+
+            darkModeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                darkModeToggle.querySelector('#theme-toggle-text').textContent = isDarkMode ? 'Mode Terang' : 'Mode Gelap';
+                darkModeToggle.querySelector('i').className = isDarkMode ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+                localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+            });
+
+            if (localStorage.getItem('theme') === 'dark') {
+                document.documentElement.classList.add('dark');
+                darkModeToggle.querySelector('#theme-toggle-text').textContent = 'Mode Terang';
+                darkModeToggle.querySelector('i').className = 'fa-solid fa-sun';
+            }
+
+            printBtn.addEventListener('click', () => window.print());
+            highlightTeacherBtn.addEventListener('click', highlightTeacherSchedule);
+        });
+    </script>
+</body>
+</html>
